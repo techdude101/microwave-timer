@@ -7,6 +7,9 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 
+#define BUTTON_30s 1
+#define BUTTON_60s 2
+
 const int button_30s = 3;
 const int button_60s = 4;
 const int led_green = 2;
@@ -17,7 +20,6 @@ enum states {
   TIMER_RUNNING,
   NOTIFYING
 };
-
 
 volatile uint8_t button_pressed = 0;
 volatile enum states state;
@@ -72,10 +74,13 @@ void enter_sleep() {
   
   // Wake up from sleep here
   
+  // Read the button states
   uint8_t b1 = PINB & (1 << button_30s);
   uint8_t b2 = PINB & (1 << button_60s);
-  if (b1 == 0) {
-    button_pressed = 1;
+  
+  // Buttons are active low
+  if (b1 == LOW) {
+    button_pressed = BUTTON_30s;
     if (state == IDLE) {
       state = TIMER_RUNNING; 
     } else if (state == TIMER_RUNNING) {
@@ -83,8 +88,8 @@ void enter_sleep() {
     } else if (state == NOTIFYING) {
       state = IDLE; 
     }
-  } else if (b2 == 0) {
-    button_pressed = 2;
+  } else if (b2 == LOW) {
+    button_pressed = BUTTON_60s;
     if (state == IDLE) {
       state = TIMER_RUNNING; 
     } else if (state == TIMER_RUNNING) {
@@ -111,6 +116,7 @@ void setup_watchdog(int ii) {
   bb |= (1 << WDCE);
   ww = bb;
   MCUSR = 0x00;
+  
   // start timed sequence
   WDTCR |= (1 << WDCE) | (1 << WDE);
   
@@ -141,15 +147,14 @@ void loop() {
   activeBuzzer(250, buzzer_pin, 100);
   enter_sleep();
 
-  if (button_pressed == 1) {
+  if (button_pressed == BUTTON_30s) {
     activeBuzzer(500, buzzer_pin, 100);
     delay_time_in_seconds = 30;
     digitalWrite(led_green, LOW);
   }
-  if (button_pressed == 2) {
+  if (button_pressed == BUTTON_60s) {
     activeBuzzer(250, buzzer_pin, 200);
     delay_time_in_seconds = 60;
-    digitalWrite(LED_BUILTIN, LOW);
     digitalWrite(led_green, LOW);
   }
 
